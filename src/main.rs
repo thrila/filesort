@@ -132,19 +132,9 @@ pub fn log(msg: &str) {
     }
 }
 
-/// `~/.config/filesort` (or `$XDG_CONFIG_HOME/filesort`) on every OS.
-pub fn config_dir() -> PathBuf {
-    let base = match std::env::var_os("XDG_CONFIG_HOME") {
-        Some(d) if !d.is_empty() => PathBuf::from(d),
-        _ => dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".config"),
-    };
-    base.join("filesort")
-}
 
 fn default_config_path() -> PathBuf {
-    config_dir().join("filesort.toml")
+    config::config_dir().join("filesort.toml")
 }
 
 fn config_path(cli: &Cli) -> Result<PathBuf> {
@@ -216,8 +206,14 @@ fn main() -> Result<()> {
                             "  (not yet created; the built-in copy is used)"
                         }
                     );
-                    println!("watch folder:  {}", cfg.watch_dir.display());
-                    println!("library:       {}", cfg.library_root.display());
+                    let d = cfg.dirs();
+                    println!("watch folder:  {}", d.watch.display());
+                    println!("books:         {}", d.books.display());
+                    println!("movies:        {}", d.movies.display());
+                    println!("series:        {}", d.series.display());
+                    println!("music:         {}", d.music.display());
+                    println!("pictures:      {}", d.pictures.display());
+                    println!("unidentified:  {}", d.unsorted.display());
                     if !cfg.log_file.trim().is_empty() {
                         println!(
                             "log file:      {}",

@@ -472,7 +472,7 @@ impl Sorter {
                             info: Some((show_dir, found.0)),
                         }
                     }
-                    None => match self.folder_dest(&self.dirs.unsorted.join("Videos"), path) {
+                    None => match self.folder_dest(&self.dirs.unsorted, path) {
                         Some(dest) => Plan {
                             genre: None,
                             leave: None,
@@ -491,7 +491,6 @@ impl Sorter {
                             dest: self
                                 .dirs
                                 .unsorted
-                                .join("Videos")
                                 .join(media::safe_dir_name(&media::title_case(&v.title))),
                             what: "Episode",
                             note: format!("episode {ep}, not found on Wikipedia, grouped by name"),
@@ -565,7 +564,7 @@ impl Sorter {
             None => {
                 // Unidentified videos that came in a folder (a course, a channel download)
                 // keep that folder structure.
-                if let Some(dest) = self.folder_dest(&self.dirs.unsorted.join("Videos"), path) {
+                if let Some(dest) = self.folder_dest(&self.dirs.unsorted, path) {
                     return Some(Plan {
                         genre: None,
                         leave: None,
@@ -581,7 +580,6 @@ impl Sorter {
                 let group_dir = self
                     .dirs
                     .unsorted
-                    .join("Videos")
                     .join(media::safe_dir_name(&media::title_case(&key)));
                 let shared = self
                     .video_groups
@@ -604,7 +602,7 @@ impl Sorter {
                         genre: None,
                         leave: None,
                         bucket: Bucket::UnsortedVideo,
-                        dest: self.dirs.unsorted.join("Videos"),
+                        dest: self.dirs.unsorted.clone(),
                         what: "Video",
                         note: "could not identify".into(),
                         info: None,
@@ -970,7 +968,7 @@ impl Sorter {
                     None => format!("{vol}no usable words in the title{wiki_note}"),
                 }),
                 bucket: Bucket::UnsortedBook,
-                dest: in_series(self.dirs.unsorted.join("Books")),
+                dest: in_series(self.dirs.books.join("Unsorted")),
                 what: "Book",
                 note: String::new(),
                 info: None,

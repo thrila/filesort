@@ -107,7 +107,8 @@ const SAMPLE_CONFIG: &str = concat!(
 # Folder that is scanned for new media on every run.
 watch_dir = '{WATCH_DIR}'
 
-# Base folder for the sorted library.
+# Where books and documents go: one folder per subject (Fiction, Math, Papers, ...).
+# Videos, music and pictures go to your system's own folders, see [folders] below.
 library_root = '{LIBRARY_ROOT}'
 
 # Cron expression (minute hour day-of-month month day-of-week), local time.
@@ -152,14 +153,16 @@ min_confidence = 0.35
 log_file = ""
 
 [folders]
-movies   = "Movies"     # Movies/<Title (Year)>/
-series   = "Series"     # Series/<Show>/Season 01/
-music    = "Music"      # Music/<Artist>/<Album>/
-pictures = "Pictures"   # Pictures/<Year>/
-books    = "."          # <books>/<Subject>/  ("." keeps the existing subject folders at the library root)
-other    = "Other"      # Other/<Documents|Archives|Programs|...>/
-unsorted = "Unsorted"   # Unsorted/<Videos|Books|...>/
-cache    = ".filesort_cache"
+# Defaults are this computer's own Videos / Music / Pictures folders. Relative paths are
+# resolved against library_root.
+movies   = '{MOVIES}'     # <movies>/<Title (Year)>/
+series   = '{SERIES}'     # <series>/<Show>/Season 01/
+unsorted = '{UNSORTED}'   # videos that couldn't be identified (folder structure kept)
+music    = '{MUSIC}'      # <music>/<Artist>/<Album>/
+pictures = '{PICTURES}'   # <pictures>/<Year>/
+books    = "."            # <library_root>/<Subject>/
+other    = "Other"        # <library_root>/Other/<Documents|Archives|Programs>/ (see skip)
+cache    = '{CACHE}'      # Wikipedia lookups already made
 
 [wikipedia]
 enabled = true
@@ -174,17 +177,21 @@ write_info = true
     classifier_defaults!()
 );
 
-/// The starter config, with this computer's Downloads folder as `watch_dir` and
-/// `<Documents>/Library` as `library_root`.
+/// The starter config, filled in with this computer's folders: Downloads as `watch_dir`,
+/// `<Documents>/Library` for books, and the system Videos / Music / Pictures folders.
 pub fn sample() -> String {
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    let watch = dirs::download_dir().unwrap_or_else(|| home.join("Downloads"));
-    let library = dirs::document_dir()
-        .unwrap_or_else(|| home.join("Documents"))
-        .join("Library");
+    let f = Folders::default();
+    let library = system_dirs::documents().join("Library");
+    let show = |p: &PathBuf| p.display().to_string();
     SAMPLE_CONFIG
-        .replace("{WATCH_DIR}", &watch.display().to_string())
-        .replace("{LIBRARY_ROOT}", &library.display().to_string())
+        .replace("{WATCH_DIR}", &show(&system_dirs::downloads()))
+        .replace("{LIBRARY_ROOT}", &show(&library))
+        .replace("{MOVIES}", &show(&f.movies))
+        .replace("{SERIES}", &show(&f.series))
+        .replace("{UNSORTED}", &show(&f.unsorted))
+        .replace("{MUSIC}", &show(&f.music))
+        .replace("{PICTURES}", &show(&f.pictures))
+        .replace("{CACHE}", &show(&f.cache))
 }
 
 /// Names accepted in `skip`.
@@ -249,17 +256,53 @@ pub struct Folders {
 }
 
 impl Default for Folders {
+    /// This computer's own folders: videos in Videos (Movies on macOS), music in Music,
+    /// pictures in Pictures; books and other documents under library_root.
     fn default() -> Self {
+        let videos = system_dirs::videos();
         Self {
-            movies: "Movies".into(),
-            series: "Series".into(),
-            music: "Music".into(),
-            pictures: "Pictures".into(),
+            movies: videos.join("Movies"),
+            series: videos.join("Series"),
+            unsorted: videos.join("Unsorted"),
+            music: system_dirs::music(),
+            pictures: system_dirs::pictures(),
             books: ".".into(),
             other: "Other".into(),
-            unsorted: "Unsorted".into(),
-            cache: ".filesort_cache".into(),
+            cache: config_dir().join("cache"),
         }
+    }
+}
+
+/// `~/.config/filesort` (or `$XDG_CONFIG_HOME/filesort`) on every OS.
+pub fn config_dir() -> PathBuf {
+    let base = match std::env::var_os("XDG_CONFIG_HOME") {
+        Some(d) if !d.is_empty() => PathBuf::from(d),
+        _ => system_dirs::home().join(".config"),
+    };
+    base.join("filesort")
+}
+
+/// The OS's own user folders (Windows known folders, XDG user dirs on Linux, macOS
+/// standard folders), with sensible fallbacks when one isn't set.
+mod system_dirs {
+    use std::path::PathBuf;
+    pub fn home() -> PathBuf {
+        dirs::home_dir().unwrap_or_else(|| PathBuf::from("."))
+    }
+    pub fn videos() -> PathBuf {
+        dirs::video_dir().unwrap_or_else(|| home().join("Videos"))
+    }
+    pub fn music() -> PathBuf {
+        dirs::audio_dir().unwrap_or_else(|| home().join("Music"))
+    }
+    pub fn pictures() -> PathBuf {
+        dirs::picture_dir().unwrap_or_else(|| home().join("Pictures"))
+    }
+    pub fn downloads() -> PathBuf {
+        dirs::download_dir().unwrap_or_else(|| home().join("Downloads"))
+    }
+    pub fn documents() -> PathBuf {
+        dirs::document_dir().unwrap_or_else(|| home().join("Documents"))
     }
 }
 
@@ -485,6 +528,8 @@ impl Config {
         let r = |p: &PathBuf| {
             if p.is_absolute() {
                 p.clone()
+            } else if p.as_os_str() == "." || p.as_os_str().is_empty() {
+                root.clone()
             } else {
                 root.join(p)
             }
