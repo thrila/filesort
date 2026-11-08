@@ -1,0 +1,36 @@
+[package]
+name = "filesort"
+version = "0.1.0"
+edition = "2021"
+description = "Sorts movies, series, music, pictures and books from a watch folder into a library, using Wikipedia and a Wikipedia-trained classifier."
+
+[dependencies]
+anyhow = "1"
+chrono = "0.4"
+flate2 = "1"
+clap = { version = "4", features = ["derive", "env"] }
+croner = "2"
+kamadak-exif = "0.6"
+lofty = "0.22"
+notify = "8"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+unicode-normalization = "0.1"
+ureq = { version = "3", default-features = false, features = ["native-tls", "json", "gzip"] }
+walkdir = "2"
+lopdf = { version = "0.47.0", default-features = false }
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+dirs = "7.0.0"
+
+[profile.release]
+strip = true
+
+# Optimize dependencies even in debug builds: `cargo run` stays responsive (regex,
+# compression and HTTP are much slower unoptimized). Our own code still builds fast.
+[profile.dev.package."*"]
+opt-level = 3
+
+[target."cfg(windows)".dependencies]
+windows-service = "0.8.1"
