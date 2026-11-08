@@ -1,0 +1,7 @@
+/target
+/media_sorter.toml
+/filesort.toml
+# Private notes on how data/training.bin was generated
+/TRAINING_DATA_NOTES.md
+# Old per-label training files, imported into data/training.bin
+/data/training/
